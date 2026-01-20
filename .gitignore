@@ -1,0 +1,21 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+
+# Cursor / local tooling
+.cursor/
+
+# OS
+Thumbs.db
+Desktop.ini

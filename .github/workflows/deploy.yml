@@ -1,0 +1,143 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'staging-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    name: Meta (tag parsing + release notes)
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      version: ${{ steps.env.outputs.version }}
+      tag_name: ${{ steps.env.outputs.tag_name }}
+      tag_prefix: ${{ steps.env.outputs.tag_prefix }}
+      prerelease: ${{ steps.env.outputs.prerelease }}
+      release_notes: ${{ steps.changelog.outputs.release_notes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect environment and extract version
+        id: env
+        shell: bash
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [[ "$TAG_NAME" =~ ^staging-v ]]; then
+            ENVIRONMENT="staging"
+            VERSION=${TAG_NAME#staging-v}
+            TAG_PREFIX="staging-v"
+            PRERELEASE="true"
+          else
+            ENVIRONMENT="production"
+            VERSION=${TAG_NAME#v}
+            TAG_PREFIX="v"
+            PRERELEASE="false"
+          fi
+
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag_prefix=$TAG_PREFIX" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog (since previous tag)
+        id: changelog
+        shell: bash
+        run: |
+          TAG_NAME="${{ steps.env.outputs.tag_name }}"
+          TAG_PREFIX="${{ steps.env.outputs.tag_prefix }}"
+          ENVIRONMENT="${{ steps.env.outputs.environment }}"
+
+          # Get most recent previous tag of the same type (excluding current tag)
+          PREV_TAG=$(git tag -l "${TAG_PREFIX}*" | sort -V | grep -v -x "$TAG_NAME" | tail -n 1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            BODY="Initial release"
+          else
+            COMMIT_COUNT=$(git rev-list --count "${PREV_TAG}..${TAG_NAME}" 2>/dev/null || echo "0")
+            if [ "$COMMIT_COUNT" -eq 0 ]; then
+              BODY="No changes detected"
+            else
+              COMMITS=$(git log "${PREV_TAG}..${TAG_NAME}" --pretty=format:"- %s (%an)" --no-merges | head -n 20)
+              if [ "$COMMIT_COUNT" -gt 20 ]; then
+                BODY="**${COMMIT_COUNT} commits** (showing first 20):"$'\n'"${COMMITS}"
+              else
+                BODY="**${COMMIT_COUNT} commits**:"$'\n'"${COMMITS}"
+              fi
+            fi
+          fi
+
+          NOTES="## ScreenshotUploader ${TAG_NAME}"$'\n\n'"**Environment**: ${ENVIRONMENT}"$'\n\n'"${BODY}"
+
+          echo "release_notes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+  build_windows:
+    name: Build (Windows)
+    runs-on: windows-latest
+    needs: meta
+    outputs:
+      zip_name: ${{ steps.pack.outputs.zip_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Restore
+        run: dotnet restore "ScreenshotUploader.csproj"
+
+      - name: Publish (Release, win-x64, framework-dependent)
+        run: dotnet publish "ScreenshotUploader.csproj" -c Release -r win-x64 --self-contained false -o "publish"
+
+      - name: Package zip
+        id: pack
+        shell: pwsh
+        run: |
+          $version = '${{ needs.meta.outputs.version }}'
+          $zipName = "ScreenshotUploader-$version-win-x64.zip"
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE $zipName
+
+          if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
+          Compress-Archive -Path "publish\*" -DestinationPath $zipPath -Force
+
+          "zip_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zip
+          path: ${{ steps.pack.outputs.zip_name }}
+          if-no-files-found: error
+
+  release:
+    name: Release (GitHub)
+    runs-on: ubuntu-latest
+    needs: [meta, build_windows]
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-zip
+
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag_name }}
+          name: ${{ needs.meta.outputs.tag_name }}
+          prerelease: ${{ needs.meta.outputs.prerelease }}
+          body: ${{ needs.meta.outputs.release_notes }}
+          files: release-zip/${{ needs.build_windows.outputs.zip_name }}
