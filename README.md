@@ -14,7 +14,7 @@ A Windows Forms application that monitors a configurable folder for screenshot f
 ## Requirements
 
 - Windows 10 or later
-- .NET 6.0 or later
+- .NET 8.0 or later
 - Flight Simulator with FSUIPC installed (for metadata capture)
 - Valid Echo Airlines API key
 
