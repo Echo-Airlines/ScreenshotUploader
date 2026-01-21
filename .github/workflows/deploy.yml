@@ -140,4 +140,4 @@ jobs:
           name: ${{ needs.meta.outputs.tag_name }}
           prerelease: ${{ needs.meta.outputs.prerelease }}
           body: ${{ needs.meta.outputs.release_notes }}
-          files: ~/${{ needs.build_windows.outputs.zip_name }}
+          files: ${{ needs.build_windows.outputs.zip_name }}
