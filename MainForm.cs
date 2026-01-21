@@ -47,11 +47,15 @@ public partial class MainForm : Form
         // Create tray icon
         _trayIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
             ContextMenuStrip = _contextMenu,
             Text = "Echo Airlines Screenshot Uploader",
             Visible = true
         };
+
+        var appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
+        this.Icon = appIcon;
+
+        _trayIcon.Icon = appIcon;
 
         _trayIcon.DoubleClick += OnTrayIconDoubleClick;
         _trayIcon.MouseClick += OnTrayIconClick;
@@ -312,13 +316,31 @@ public partial class MainForm : Form
 
     private void OnAboutClick(object? sender, EventArgs e)
     {
+        var versionString = GetVersionString();
         MessageBox.Show(
             "Echo Airlines Screenshot Uploader\n\n" +
-            "Monitors a folder for screenshots and automatically uploads them to the Echo Airlines API with Flight Simulator metadata.\n\n" +
-            "Version 1.0",
+            "Monitors a folder for screenshots and automatically uploads them to the Echo Airlines API.\n\n" +
+            $"Version {versionString}",
             "About",
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
+    }
+
+    private static string GetVersionString()
+    {
+        // Prefer InformationalVersion if present, else fall back to AssemblyName.Version
+        var asm = System.Reflection.Assembly.GetExecutingAssembly();
+        var info = System.Reflection.CustomAttributeExtensions
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(asm)
+            ?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(info))
+        {
+            var plusIndex = info.IndexOf('+');
+            return plusIndex >= 0 ? info[..plusIndex] : info;
+        }
+
+        var ver = asm.GetName().Version;
+        return ver?.ToString() ?? "unknown";
     }
 
     private void OnExitClick(object? sender, EventArgs e)

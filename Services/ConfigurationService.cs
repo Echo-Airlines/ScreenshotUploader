@@ -47,6 +47,15 @@ public class ConfigurationService
             _settings = new AppSettings();
         }
 
+        // Apply defaults / migrations
+        if (string.IsNullOrWhiteSpace(_settings.ApiBaseUrl))
+        {
+            _settings.ApiBaseUrl = "https://www.echoairlines.com/api";
+        }
+
+        // FSUIPC metadata is currently disabled due to compatibility issues.
+        _settings.EnableFsuipcMetadata = false;
+
         return _settings;
     }
 
