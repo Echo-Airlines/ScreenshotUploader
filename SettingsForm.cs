@@ -4,6 +4,7 @@ using System.IO;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Reflection;
+using Microsoft.Toolkit.Uwp.Notifications;
 using ScreenshotUploader.Models;
 using ScreenshotUploader.Services;
 
@@ -30,6 +31,7 @@ public partial class SettingsForm : Form
     private Button? _btnBrowseFolder;
     private Button? _btnSave;
     private Button? _btnCancel;
+    private Button? _btnDebugNotification;
 
     public SettingsForm(ConfigurationService configService)
     {
@@ -246,6 +248,14 @@ public partial class SettingsForm : Form
         _btnSave = new Button { Text = "Save", Width = 100, Height = 30, DialogResult = DialogResult.OK };
         _btnSave.Click += BtnSave_Click;
         _btnCancel = new Button { Text = "Cancel", Width = 100, Height = 30, DialogResult = DialogResult.Cancel };
+
+        if (Environment.GetEnvironmentVariable("ENVIRONMENT") == "development")
+        {
+            _btnDebugNotification = new Button { Text = "Test Notification", Width = 120, Height = 30 };
+            _btnDebugNotification.Click += BtnDebugNotification_Click;
+            buttons.Controls.Add(_btnDebugNotification);
+        }
+        
         buttons.Controls.Add(_btnSave);
         buttons.Controls.Add(_btnCancel);
 
@@ -410,6 +420,29 @@ public partial class SettingsForm : Form
         catch
         {
             // ignore - user can copy/paste manually
+        }
+    }
+
+    private void BtnDebugNotification_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            new ToastContentBuilder()
+                .AddText("Debug Notification")
+                .AddText("This is a test notification from the Screenshot Uploader settings.")
+                .Show(toast =>
+                {
+                    toast.ExpirationTime = DateTime.Now.AddMinutes(1);
+                });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to show notification: {ex.Message}",
+                "Debug Notification Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning
+            );
         }
     }
 }

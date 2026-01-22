@@ -7,6 +7,5 @@ public class AppSettings
     public string ScreenshotFolderPath { get; set; } = string.Empty;
     public bool AutoDetectFlightId { get; set; } = true;
     public string ManualFlightId { get; set; } = string.Empty;
-    // Temporarily disabled due to compatibility issues.
-    public bool EnableFsuipcMetadata { get; set; } = false;
+    public bool EnableFsuipcMetadata { get; set; } = true;
 }

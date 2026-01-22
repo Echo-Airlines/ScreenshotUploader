@@ -54,7 +54,7 @@ public class ConfigurationService
         }
 
         // FSUIPC metadata is currently disabled due to compatibility issues.
-        _settings.EnableFsuipcMetadata = false;
+        //_settings.EnableFsuipcMetadata = false;
 
         return _settings;
     }

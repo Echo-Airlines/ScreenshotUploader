@@ -5,7 +5,7 @@ using ScreenshotUploader.Models;
 
 namespace ScreenshotUploader.Services;
 
-public class FsuipcService : IDisposable
+public class FSUIPCService : IDisposable
 {
     private bool _isConnected = false;
     private bool _isDisposed = false;
@@ -35,7 +35,7 @@ public class FsuipcService : IDisposable
             if (!FSUIPCConnection.IsOpen)
             {
                 FSUIPCConnection.Open();
-                _isConnected = true;
+                _isConnected = FSUIPCConnection.IsOpen;
             }
 
             _latitudeOffset = new Offset<FsLatitude>("LatLong", 0x0560, 8);
@@ -45,6 +45,7 @@ public class FsuipcService : IDisposable
 
             this.latitude = _latitudeOffset.Value;
             this.longitude = _longitudeOffset.Value;
+
             // Initialize offsets
             this.altitude = _altitudeOffset.Value;
             _headingOffset = new Offset<double>(0x02CC);
