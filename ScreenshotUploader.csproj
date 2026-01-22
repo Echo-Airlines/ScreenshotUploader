@@ -12,6 +12,30 @@
     <Version>0.1.7</Version>
   </PropertyGroup>
 
+  <!-- ClickOnce Publishing Properties -->
+  <PropertyGroup>
+    <PublishProtocol>ClickOnce</PublishProtocol>
+    <PublishUrl Condition="'$(PublishUrl)' == ''">https://deploy.echoairlines.com/</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>0</UpdateInterval>
+    <UpdateIntervalUnits>Hours</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>$(Version).0</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseDeployKey>true</UseDeployKey>
+    <CreateWebPageOnPublish>false</CreateWebPageOnPublish>
+    <WebPage>publish.htm</WebPage>
+    <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="FSUIPCClientDLL" Version="3.3.16" />
     <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />

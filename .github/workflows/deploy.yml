@@ -87,7 +87,8 @@ jobs:
     runs-on: windows-latest
     needs: meta
     outputs:
-      zip_name: ${{ steps.pack.outputs.zip_name }}
+      clickonce_path: ${{ steps.publish.outputs.clickonce_path }}
+      clickonce_zip: ${{ steps.pack.outputs.clickonce_zip }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,27 +101,69 @@ jobs:
       - name: Restore
         run: dotnet restore "ScreenshotUploader.csproj"
 
-      - name: Publish (Release, win-x64, framework-dependent)
-        run: dotnet publish "ScreenshotUploader.csproj" -c Release -r win-x64 --self-contained false -o "publish"
+      - name: Update version in project file
+        shell: pwsh
+        run: |
+          $version = '${{ needs.meta.outputs.version }}'
+          $csprojPath = "ScreenshotUploader.csproj"
+          $content = Get-Content $csprojPath -Raw
+          $content = $content -replace '<Version>[\d.]+</Version>', "<Version>$version</Version>"
+          Set-Content -Path $csprojPath -Value $content -NoNewline
 
-      - name: Package zip
+      - name: Publish ClickOnce
+        id: publish
+        shell: pwsh
+        run: |
+          $version = '${{ needs.meta.outputs.version }}'
+          $publishUrl = "https://deploy.echoairlines.com/"
+          $publishDir = "clickonce-publish"
+          
+          # Publish ClickOnce application
+          dotnet publish "ScreenshotUploader.csproj" `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:PublishUrl="$publishUrl" `
+            -p:PublishProtocol=ClickOnce `
+            -p:Install=true `
+            -p:UpdateEnabled=true `
+            -p:UpdateMode=Foreground `
+            -p:UpdateInterval=0 `
+            -p:ApplicationVersion="$version.0" `
+            -p:MapFileExtensions=true `
+            -o "$publishDir"
+
+          # ClickOnce output is typically in a subdirectory
+          $clickoncePath = if (Test-Path "$publishDir\publish") { "$publishDir\publish" } else { $publishDir }
+          
+          "clickonce_path=$clickoncePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Package ClickOnce for deployment
         id: pack
         shell: pwsh
         run: |
           $version = '${{ needs.meta.outputs.version }}'
-          $zipName = "ScreenshotUploader-$version-win-x64.zip"
+          $clickoncePath = '${{ steps.publish.outputs.clickonce_path }}'
+          $zipName = "ScreenshotUploader-ClickOnce-$version.zip"
           $zipPath = Join-Path $env:GITHUB_WORKSPACE $zipName
 
           if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
-          Compress-Archive -Path "publish\*" -DestinationPath $zipPath -Force
+          Compress-Archive -Path "$clickoncePath\*" -DestinationPath $zipPath -Force
 
-          "zip_name=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "clickonce_zip=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      - name: Upload artifact
+      - name: Upload ClickOnce artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-zip
-          path: ${{ steps.pack.outputs.zip_name }}
+          name: clickonce-deploy
+          path: ${{ steps.publish.outputs.clickonce_path }}
+          if-no-files-found: error
+
+      - name: Upload ClickOnce zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clickonce-zip
+          path: ${{ steps.pack.outputs.clickonce_zip }}
           if-no-files-found: error
 
   release:
@@ -128,16 +171,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [meta, build_windows]
     steps:
-      - name: Download artifact
+      - name: Download ClickOnce zip artifact
         uses: actions/download-artifact@v4
         with:
-          name: release-zip
+          name: clickonce-zip
 
-      - name: Create GitHub Release and upload asset
+      - name: Create GitHub Release and upload ClickOnce asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.meta.outputs.tag_name }}
           name: ${{ needs.meta.outputs.tag_name }}
           prerelease: ${{ needs.meta.outputs.prerelease }}
           body: ${{ needs.meta.outputs.release_notes }}
-          files: ${{ needs.build_windows.outputs.zip_name }}
+          files: ${{ needs.build_windows.outputs.clickonce_zip }}

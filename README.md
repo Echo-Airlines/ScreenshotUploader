@@ -5,7 +5,7 @@ A Windows Forms application that monitors a configurable folder for screenshot f
 ## Features
 
 - **Automatic File Monitoring**: Watches a configured folder for new screenshot files
-- **FSUIPC Integration**: Captures flight simulator metadata (position, altitude, heading, speed, etc.)
+- **FSUIPC Integration** (coming soon): Captures flight simulator metadata (position, altitude, heading, speed, etc.)
 - **Automatic Flight Detection**: Automatically detects active flights from the API
 - **System Tray Integration**: Runs minimized in the system tray
 - **Configurable Settings**: Easy-to-use settings dialog for configuration
