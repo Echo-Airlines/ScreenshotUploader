@@ -482,41 +482,86 @@ public partial class MainForm : Form
         }
     }
 
+    private string GetBaseUrl()
+    {
+        // Get base URL from API URL (remove /api suffix if present)
+        var apiUrl = _settings.ApiBaseUrl ?? "https://www.echoairlines.com/api";
+        if (apiUrl.EndsWith("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            return apiUrl.Substring(0, apiUrl.Length - 4);
+        }
+        // If no /api suffix, try to extract base URL
+        var uri = new Uri(apiUrl);
+        return $"{uri.Scheme}://{uri.Host}";
+    }
+
     private void ShowToastNotification(string flightId, int screenshotCount)
     {
         try
         {
+            var baseUrl = GetBaseUrl();
+            var flightUrl = $"{baseUrl}/flight/{flightId}";
+            
             var title = screenshotCount == 1 
                 ? "Screenshot Uploaded" 
                 : $"{screenshotCount} Screenshots Uploaded";
             
             var message = screenshotCount == 1
-                ? "Your screenshot has been uploaded successfully."
-                : $"{screenshotCount} screenshots have been uploaded successfully.";
+                ? $"Your screenshot has been uploaded successfully.\nView flight"
+                : $"{screenshotCount} screenshots have been uploaded successfully.\nView flight";
 
+            Debug.WriteLine($"Attempting to show toast notification for flight {flightId}");
+
+            // Check if we can create a notifier first
+            try
+            {
+                var notifier = ToastNotificationManagerCompat.CreateToastNotifier();
+                if (notifier == null)
+                {
+                    throw new InvalidOperationException("Toast notifier is null");
+                }
+                Debug.WriteLine($"Toast notifier created successfully");
+            }
+            catch (Exception notifierEx)
+            {
+                Debug.WriteLine($"Failed to create toast notifier: {notifierEx.Message}");
+                throw new InvalidOperationException($"Cannot create toast notifier. Make sure the app is properly installed and Windows notifications are enabled. Error: {notifierEx.Message}", notifierEx);
+            }
+
+            // Use the Show() extension method directly
+            // Make the entire notification clickable by setting launch argument
             new ToastContentBuilder()
                 .AddArgument("action", "viewFlight")
                 .AddArgument("flightId", flightId)
+                .SetToastScenario(ToastScenario.Default)
                 .AddText(title)
                 .AddText(message)
                 .AddButton(new ToastButton()
-                    .SetContent("View Flight")
+                    .SetContent("Click to view flight")
                     .AddArgument("action", "viewFlight")
                     .AddArgument("flightId", flightId))
                 .Show(toast =>
                 {
                     toast.ExpirationTime = DateTime.Now.AddMinutes(5);
                 });
+            
+            Debug.WriteLine($"Toast notification shown successfully for flight {flightId}");
         }
         catch (Exception ex)
         {
             // Fallback to balloon tip if toast fails
             Debug.WriteLine($"Failed to show toast notification: {ex.Message}");
+            Debug.WriteLine($"Exception type: {ex.GetType().FullName}");
+            Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            
+            // Always show balloon tip as fallback so user gets some notification
+            var baseUrl = GetBaseUrl();
+            var flightUrl = $"{baseUrl}/flight/{flightId}";
             ShowNotification(
                 screenshotCount == 1 ? "Screenshot Uploaded" : "Screenshots Uploaded",
                 screenshotCount == 1 
-                    ? $"Screenshot uploaded successfully. Flight: {flightId}"
-                    : $"{screenshotCount} screenshots uploaded successfully. Flight: {flightId}",
+                    ? $"Screenshot uploaded successfully.\nView flight"
+                    : $"{screenshotCount} screenshots uploaded successfully.\nView flight",
                 ToolTipIcon.Info);
         }
     }

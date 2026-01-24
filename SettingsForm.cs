@@ -4,6 +4,7 @@ using System.IO;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.Toolkit.Uwp.Notifications;
 using ScreenshotUploader.Models;
 using ScreenshotUploader.Services;
@@ -32,6 +33,7 @@ public partial class SettingsForm : Form
     private Button? _btnSave;
     private Button? _btnCancel;
     private Button? _btnDebugNotification;
+    private Button? _btnTestConnection;
 
     public SettingsForm(ConfigurationService configService)
     {
@@ -113,11 +115,12 @@ public partial class SettingsForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
-            RowCount = 4
+            RowCount = 5
         };
         apiLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         apiLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         apiLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        apiLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         apiLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         apiLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         apiLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
@@ -141,6 +144,15 @@ public partial class SettingsForm : Form
         btnProfile.Click += (_, _) => OpenUrl("https://www.echoairlines.com/profile");
         apiLayout.Controls.Add(btnProfile, 2, 1);
 
+        _btnTestConnection = new Button
+        {
+            Text = "Test Connection",
+            Dock = DockStyle.Fill
+        };
+        _btnTestConnection.Click += BtnTestConnection_Click;
+        apiLayout.Controls.Add(_btnTestConnection, 1, 2);
+        apiLayout.SetColumnSpan(_btnTestConnection, 2);
+
         var apiHelp = new Label
         {
             Text = "Get your API Key from your Echo Airlines user profile page.",
@@ -148,7 +160,7 @@ public partial class SettingsForm : Form
             ForeColor = SystemColors.GrayText,
             Anchor = AnchorStyles.Left
         };
-        apiLayout.Controls.Add(apiHelp, 1, 2);
+        apiLayout.Controls.Add(apiHelp, 1, 3);
         apiLayout.SetColumnSpan(apiHelp, 2);
 
         // Upload group
@@ -443,6 +455,93 @@ public partial class SettingsForm : Form
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning
             );
+        }
+    }
+
+    private async void BtnTestConnection_Click(object? sender, EventArgs e)
+    {
+        if (_btnTestConnection == null || _txtApiBaseUrl == null || _txtApiKey == null)
+        {
+            return;
+        }
+
+        // Validate inputs
+        var apiBaseUrl = _txtApiBaseUrl.Text.Trim();
+        var apiKey = _txtApiKey.Text.Trim();
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            MessageBox.Show(
+                "Please enter an API Base URL.",
+                "Validation Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning
+            );
+            _txtApiBaseUrl.Focus();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            MessageBox.Show(
+                "Please enter an API Key.",
+                "Validation Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning
+            );
+            _txtApiKey.Focus();
+            return;
+        }
+
+        // Disable button and show testing state
+        _btnTestConnection.Enabled = false;
+        _btnTestConnection.Text = "Testing...";
+
+        try
+        {
+            // Create temporary ApiClient instance
+            using var apiClient = new ApiClient(apiBaseUrl, apiKey);
+
+            // Test connection
+            var result = await apiClient.TestConnectionAsync();
+
+            // Show result message
+            if (result.Success)
+            {
+                MessageBox.Show(
+                    result.Message,
+                    "Connection Test",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+            }
+            else
+            {
+                MessageBox.Show(
+                    result.Message,
+                    "Connection Test Failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"An unexpected error occurred: {ex.Message}",
+                "Connection Test Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+        }
+        finally
+        {
+            // Re-enable button and restore text
+            if (_btnTestConnection != null)
+            {
+                _btnTestConnection.Enabled = true;
+                _btnTestConnection.Text = "Test Connection";
+            }
         }
     }
 }
