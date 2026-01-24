@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Toolkit.Uwp.Notifications;
 using Sentry;
@@ -9,6 +10,10 @@ static class Program
 {
     private const string AppUserModelId = "EchoAirlines.ScreenshotUploader";
     private static string baseUrl = "https://www.echoairlines.com";
+    
+    [DllImport("shell32.dll", SetLastError = true)]
+    private static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
+    
     /// <summary>
     /// The main entry point for the application.
     /// </summary>
@@ -17,7 +22,15 @@ static class Program
     {
         // Set AppUserModelID for toast notifications
         // This must be set before showing any toast notifications
-        // ToastNotificationManagerCompat.SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
+        try
+        {
+            SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
+        }
+        catch
+        {
+            // If setting AppUserModelID fails, continue anyway - ToastNotificationManagerCompat will handle it
+        }
+        
         ToastNotificationManagerCompat.OnActivated += ToastNotificationManagerCompat_OnActivated;
         
         var envBaseUrl = Environment.GetEnvironmentVariable("BASE_URL");

@@ -10,7 +10,7 @@ using ScreenshotUploader.Models;
 
 namespace ScreenshotUploader.Services;
 
-public class ApiClient
+public class ApiClient : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
@@ -68,6 +68,96 @@ public class ApiClient
         catch (Exception ex)
         {
             throw new Exception($"Failed to get active flight ID: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<ConnectionTestResult> TestConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var url = $"{_baseUrl}/flights/mine/api-token?completed=false";
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Verify we got valid JSON response
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                try
+                {
+                    JsonConvert.DeserializeObject(json);
+                    return new ConnectionTestResult
+                    {
+                        Success = true,
+                        Message = "Connection test successful! Your API key is valid and the server is reachable."
+                    };
+                }
+                catch (JsonException)
+                {
+                    return new ConnectionTestResult
+                    {
+                        Success = false,
+                        Message = "Server responded but returned invalid data. Please contact support."
+                    };
+                }
+            }
+
+            // Handle different HTTP error status codes
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return new ConnectionTestResult
+                {
+                    Success = false,
+                    Message = "Invalid API key. Please verify your API key in your profile settings."
+                };
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (errorContent.Contains("Member not found", StringComparison.OrdinalIgnoreCase) ||
+                    errorContent.Contains("member", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new ConnectionTestResult
+                    {
+                        Success = false,
+                        Message = "API key is valid but your account is not associated with a member. Please contact support."
+                    };
+                }
+            }
+
+            var errorMsg = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new ConnectionTestResult
+            {
+                Success = false,
+                Message = $"Server error: {response.StatusCode} - {errorMsg}"
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ConnectionTestResult
+            {
+                Success = false,
+                Message = "Cannot connect to the API server. Please check your API Base URL and internet connection.",
+                Exception = ex
+            };
+        }
+        catch (TaskCanceledException ex)
+        {
+            return new ConnectionTestResult
+            {
+                Success = false,
+                Message = "Connection timeout. Please check your API Base URL and internet connection.",
+                Exception = ex
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ConnectionTestResult
+            {
+                Success = false,
+                Message = $"Unexpected error: {ex.Message}",
+                Exception = ex
+            };
         }
     }
 
