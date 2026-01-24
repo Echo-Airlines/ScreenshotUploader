@@ -45,9 +45,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\echo.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <None Include="Assets\echo.ico" />
   </ItemGroup>
-
 </Project>
