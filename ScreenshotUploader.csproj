@@ -10,7 +10,7 @@
     <AssemblyTitle>Echo Airlines Screenshot Uploader</AssemblyTitle>
     <RootNamespace>ScreenshotUploader</RootNamespace>
     <ApplicationIcon>Assets\echo.ico</ApplicationIcon>
-    <Version>0.1.7</Version>
+    <Version>0.1.9</Version>
   </PropertyGroup>
 
   <!-- ClickOnce Publishing Properties -->
@@ -42,6 +42,12 @@
     <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Sentry" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\echo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
